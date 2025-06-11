@@ -2,7 +2,7 @@
 
 > **¿Tu sitio web es un misterio? 🕵️‍♂️ ¡Descubre exactamente cuántas páginas ven tus usuarios!**
 
-![GTM](https://img.shields.io/badge/GTM-Ready-brightgreen) ![ES5](https://img.shields.io/badge/ES5-Compatible-blue) ![Privacy](https://img.shields.io/badge/Privacy-Friendly-orange) ![MIT](https://img.shields.io/badge/License-MIT-yellow)
+<img src="https://img.shields.io/badge/GTM-Ready-brightgreen" alt="GTM Ready"> <img src="https://img.shields.io/badge/ES5-Compatible-blue" alt="ES5 Compatible"> <img src="https://img.shields.io/badge/Privacy-Friendly-orange" alt="Privacy Friendly"> <img src="https://img.shields.io/badge/License-MIT-yellow" alt="MIT License">
 
 > **📧 ¿Necesitas ayuda con la implementación?** Contacta a Juan Carlos: jcarlos@convertiam.com  
 > **🎁 Primera consulta GRATIS** | **🚀 Más scripts en [convertiam.com](https://convertiam.com/?utm_source=github&utm_medium=badge&utm_campaign=pageview_counter)**
@@ -46,7 +46,67 @@ Imagínate que tienes una tienda física y quieres saber:
 // Insight: ¿Los usuarios privacy-focused compran más o menos?
 ```
 
----
+## 🎯 Resumen visual simple:
+
+```
+Página 1: { event: "page_view_custom", page_views: 1 }
+Página 2: { event: "page_view_custom", page_views: 2 }  
+Página 3: { event: "page_view_custom", page_views: 3 } + milestone 🎉
+Página 4: { event: "page_view_custom", page_views: 4 }
+Página 5: { event: "page_view_custom", page_views: 5 } + milestone 🎉
+...
+
+Storage bloqueado: { event: "page_view_custom", page_views: "blocked" } 🛡️
+Error crítico: { event: "page_view_custom", page_views: "error" } 🚨
+```
+
+## 🔧 ¿Cómo crear triggers específicos?
+
+### **Para cualquier página:**
+```
+Trigger: Custom Event
+Event name: page_view_custom
+(Sin condiciones adicionales)
+```
+
+### **Para página específica (ej: página 3):**
+```
+Trigger: Custom Event
+Event name: page_view_custom
+Conditions: {{DL - Page Views}} equals 3
+```
+
+### **Para usuarios comprometidos (3+ páginas):**
+```
+Trigger: Custom Event
+Event name: page_view_custom  
+Conditions: {{DL - Page Views}} greater than 2
+```
+
+### **Para usuarios privacy-focused:**
+```
+Trigger: Custom Event
+Event name: page_view_custom
+Conditions: {{DL - Page Views}} equals blocked
+```
+
+### **Para rangos de páginas (ej: 5-10):**
+```
+Trigger: Custom Event
+Event name: page_view_custom
+Conditions: 
+- {{DL - Page Views}} greater than 4
+- {{DL - Page Views}} less than 11
+```
+
+## 💡 Ventajas del nuevo enfoque:
+
+- ✅ **Un solo trigger** para todo
+- ✅ **Una sola variable** necesaria  
+- ✅ **Condiciones simples** en cada tag
+- ✅ **Debug súper fácil** - todo en un evento
+- ✅ **Cross-domain** resuelto automáticamente
+- ✅ **Menos complejidad** en GTM container
 
 ## 🚀 Guía paso a paso (¡Sin ser un experto!)
 
@@ -172,26 +232,24 @@ Imagínate que tienes una tienda física y quieres saber:
 
 ## 🏷️ Configuración avanzada: Crear triggers y tags específicos
 
-### 📋 Paso 1: Crear variables necesarias
+### 📋 Paso 1: Crear variable necesaria (solo una)
 
-#### Variable: Número de página
+#### Variable principal: Page Views
 1. Ve a **"Variables"** → **"Nueva"** (en Variables definidas por el usuario)
 2. **Tipo**: Variable de capa de datos
-3. **Nombre de variable de capa de datos**: `page_number`
-4. **Nombre de la variable**: `DL - Page Number`
-5. **Guardar**
+3. **Nombre de variable de capa de datos**: `page_views`
+4. **Valor predeterminado**: `1`
+5. **Nombre de la variable**: `DL - Page Views`
+6. **Guardar**
 
-#### Variable: Método de storage
-1. **Nueva variable** → **Capa de datos**
-2. **Nombre de variable de capa de datos**: `storage_method`
-3. **Nombre**: `DL - Storage Method`
-4. **Guardar**
+> **💡 ¡Solo necesitas esta variable!** El script está optimizado para usar un único evento con valores específicos.
 
-#### Variable: Nivel de privacidad
-1. **Nueva variable** → **Capa de datos**
-2. **Nombre de variable de capa de datos**: `privacy_level`
-3. **Nombre**: `DL - Privacy Level`
-4. **Guardar**
+#### Variables opcionales (para casos avanzados)
+Si necesitas información adicional:
+
+- **Storage Method**: Variable de capa de datos → `storage_method` → `DL - Storage Method`
+- **Is New Session**: Variable de capa de datos → `is_new_session` → `DL - Is New Session`
+- **Privacy Level**: Variable de capa de datos → `privacy_level` → `DL - Privacy Level`
 
 ### 🎯 Paso 2: Crear triggers específicos
 
@@ -525,9 +583,9 @@ console.log('🎯 Page View Event Detected:', {
 
 Cuando estés en modo **Vista previa**:
 
-1. **Recarga tu página** → Deberías ver `page_view_1`
-2. **Ve a otra página** → Deberías ver `page_view_2`
-3. **Una más** → Deberías ver `page_view_3` + `engagement_milestone_3_pages` 🎉
+1. **Recarga tu página** → Deberías ver `page_view_custom` con `page_views: 1`
+2. **Ve a otra página** → Deberías ver `page_view_custom` con `page_views: 2`
+3. **Una más** → Deberías ver `page_view_custom` con `page_views: 3` + `engagement_milestone` 🎉
 
 ### Método 2: 🛠️ Consola del navegador (Para valientes)
 
@@ -538,36 +596,37 @@ Cuando estés en modo **Vista previa**:
 
 ```javascript
 {
-  event: "page_view_1",
-  page_number: 1,
-  storage_method: "sessionStorage"
+  event: "page_view_custom",
+  page_views: 1,                    // ← Número de página
+  storage_method: "cookie",         // ← Método usado
+  domain_tracking: ".tudominio.com" // ← Cross-domain
 }
 ```
 
-### Método 3: 🎯 Verificación de triggers específicos
+### Método 3: 🎯 Verificación de triggers y condiciones
 
-#### ✅ Checklist de triggers que deben activarse:
+#### ✅ Checklist de lo que debe pasar:
 
 **Primera página:**
-- ✅ `CE - Specific Page Views (1-10)` se activa
-- ✅ Tag `Debug - Console Logger` ejecuta
-- ✅ Ves en consola: `🎯 Page View Event Detected`
+- ✅ `CE - PageView Custom` se activa
+- ✅ En dataLayer ves: `page_views: 1`
+- ✅ Tags con condición `page_views equals 1` ejecutan
 
 **Tercera página:**
-- ✅ `CE - Page View 3` se activa
-- ✅ `CE - Engagement Milestone 3` se activa  
-- ✅ Tag `GA4 - High Engagement Conversion` ejecuta
-- ✅ Si tienes: `Custom - Celebration Popup` muestra popup
+- ✅ `CE - PageView Custom` se activa
+- ✅ En dataLayer ves: `page_views: 3`
+- ✅ Tags con condición `page_views greater than 2` ejecutan
+- ✅ `engagement_milestone` se dispara (si está habilitado)
 
 **Quinta página:**
-- ✅ `CE - Page View 5` se activa
-- ✅ Tag `GA4 - Very Engaged Conversion` ejecuta
-- ✅ `Google Ads - High Value Audience` añade a audiencia
+- ✅ `CE - PageView Custom` se activa
+- ✅ En dataLayer ves: `page_views: 5`
+- ✅ Tags con condición `page_views greater than 4` ejecutan
 
 **Usuario con storage bloqueado:**
-- ✅ `CE - Privacy Focused User` se activa
-- ✅ `GA4 - Privacy Focused Tracking` ejecuta
-- ✅ `Custom - Privacy Banner` muestra banner
+- ✅ `CE - PageView Custom` se activa
+- ✅ En dataLayer ves: `page_views: "blocked"`
+- ✅ Tags con condición `page_views equals blocked` ejecutan
 
 ### Método 4: 📊 Verificación en GA4 (Más profesional)
 
@@ -617,48 +676,42 @@ Cuando estés en modo **Vista previa**:
 
 ## 🎊 ¿Qué eventos envía exactamente?
 
-### 📊 Evento general (resumen)
+### 📊 Evento principal (único evento necesario)
 ```javascript
 {
   event: "page_view_custom",
-  page_views: 3,                    // Número total
-  storage_method: "sessionStorage", // Cómo se guardó
-  is_new_session: false            // ¿Es una sesión nueva?
+  page_views: 3,                    // Número actual (1, 2, 3, 4...)
+  storage_method: "cookie",         // Método usado
+  is_new_session: false,           // ¿Es una sesión nueva?
+  domain_tracking: ".tudominio.com" // Domain para cross-domain
 }
 ```
 
-### 🎯 Eventos específicos (¡la magia!)
+### 🛡️ Casos especiales (mismo evento)
 ```javascript
-// Primera página
-{ event: "page_view_1", page_number: 1 }
-
-// Segunda página  
-{ event: "page_view_2", page_number: 2 }
-
-// Tercera página + BONUS
-{ event: "page_view_3", page_number: 3 }
-{ event: "engagement_milestone_3_pages" } // ¡Hito especial!
-```
-
-### 🏆 Hitos de engagement
-- **Página 3**: `engagement_milestone_3_pages` 🥉
-- **Página 5**: `engagement_milestone_5_pages` 🥈  
-- **Página 10**: `engagement_milestone_10_pages` 🥇
-
-### 🛡️ Eventos especiales (usuarios privacy-focused)
-```javascript
-// Cuando storage está completamente bloqueado
+// Usuario privacy-focused (storage bloqueado)
 { 
-  event: "page_view_blocked", 
+  event: "page_view_custom", 
+  page_views: "blocked",     // ← Valor especial
   privacy_level: "high",
   user_type: "privacy_focused"
 }
 
-// Análisis técnico de bloqueo
+// Error crítico del script
 {
-  event: "tracking_blocked_analysis",
-  block_type: "complete_storage_block",
-  business_impact: "session_tracking_impossible"
+  event: "page_view_custom",
+  page_views: "error",       // ← Valor especial
+  error_type: "pageview_counter_failed"
+}
+```
+
+### 🏆 Hitos de engagement (opcional)
+```javascript
+// Solo en páginas 3, 5, 10
+{
+  event: "engagement_milestone",
+  milestone_value: 3,
+  milestone_type: "page_views"
 }
 ```
 
