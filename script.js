@@ -1,8 +1,8 @@
-
 /**
- * Contador de Páginas Vistas en GTM (V1.1 )
+ * Contador de Páginas Vistas en GTM (V1.2) - LIMITADO A 20 PAGEVIEWS
  * 
  * Script profesional para el seguimiento granular de páginas vistas por sesión.
+ * NUEVA FUNCIONALIDAD: Límite máximo de 20 pageviews para optimizar performance.
  * 
  * CARACTERÍSTICAS:
  * - Cross-Domain: Funciona entre subdominios y dominio principal
@@ -11,29 +11,32 @@
  * - Hitos de Engagement: Variables para crear triggers personalizados
  * - Integridad de Datos: Validación completa y manejo de errores
  * - Alta Compatibilidad: 100% compatible con ES5 y modo incógnito
+ * - LÍMITE MÁXIMO: 20 pageviews para evitar sobrecarga
  * 
  * EVENTOS ENVIADOS:
  * - 'page_view_custom': Evento único para TODOS los casos
- *   · page_views: 1, 2, 3... (páginas normales)
+ *   · page_views: 1, 2, 3... hasta 20, luego "max_reached"
  *   · page_views: "blocked" (storage bloqueado)
- * - 'engagement_milestone': Solo en páginas 3, 5, 10 (opcional)
+ * - 'engagement_milestone': Solo en páginas 3, 5, 10, 15, 20
  * 
  * VARIABLES PARA TRIGGERS:
- * - page_views: Valor principal (1, 2, 3... o "blocked")
+ * - page_views: Valor principal (1-20, "max_reached", "blocked")
  * - page_number: Alias del anterior para compatibilidad
  * - storage_method: Método usado (cookie, sessionStorage, blocked)
  * - is_new_session: true/false
  * - tracking_working: true/false
+ * - is_max_reached: true/false
  * 
  * TRIGGERS SIMPLIFICADOS:
  * - page_views equals 3 (conversión usuarios comprometidos)
- * - page_views greater than 4 (usuarios VIP)  
+ * - page_views greater than 4 AND page_views not equals "max_reached" (usuarios VIP)  
  * - page_views equals "blocked" (privacy-focused)
- * - page_views matches RegEx ^[1-9]|1[0-5]$ (páginas 1-15)
+ * - page_views equals "max_reached" (usuarios super activos)
+ * - page_views matches RegEx ^([1-9]|1[0-9]|20)$ (páginas 1-20)
  * 
  * Realizado por CONVERTIAM.COM By Juan Carlos Díaz
  * Contacto: jcarlos@convertiam.com | ¿Necesitas ayuda? ¡Escríbeme!
- * Versión: 1.1 | Fecha: Junio 2025
+ * Versión: 1.2 | Fecha: Junio 2025
  * 
  * 🚀 ¿Quieres más scripts como este? Visita:
  * https://convertiam.com/?utm_source=github&utm_medium=script&utm_campaign=pageview_counter
@@ -45,10 +48,10 @@
     // 🔧 CONFIGURACIÓN DEL SCRIPT
     var CONFIG = {
         storageKey: 'pageViews',           // Nombre de la clave en storage/cookie
-        maxTrackedViews: 15,               // Máximo número de páginas a trackear individualmente
+        maxTrackedViews: 20,               // LÍMITE MÁXIMO: 20 páginas
         cookieExpiry: 1800,                // Expiración cookie en segundos (30 min)
         sendMilestones: true,              // Enviar eventos de hitos (opcional)
-        milestones: [3, 5, 10],           // Páginas que disparan eventos especiales
+        milestones: [3, 5, 10, 15, 20],   // Páginas que disparan eventos especiales
         domain: 'auto'                     // 'auto' detecta dominio, o especificar '.tudominio.com'
     };
     
@@ -58,7 +61,8 @@
         storageMethod: 'none',
         errors: [],
         isNewSession: false,
-        trackingWorking: false
+        trackingWorking: false,
+        isMaxReached: false
     };
     
     /**
@@ -81,7 +85,7 @@
     }
     
     /**
-     * 🔍 Función principal: Obtener e incrementar contador de páginas
+     * 🔍 Función principal: Obtener e incrementar contador de páginas (CON LÍMITE)
      */
     function getAndIncrementPageViews() {
         var success = false;
@@ -89,16 +93,48 @@
         
         // 🍪 MÉTODO 1: Cookies primero (cross-domain)
         try {
-            var regex = new RegExp(CONFIG.storageKey + '=(\\d+)');
+            var regex = new RegExp(CONFIG.storageKey + '=(\\d+|max_reached)');
             var cookieMatch = document.cookie.match(regex);
             var wasEmpty = !cookieMatch;
             
-            // Obtener o crear valor
-            trackingState.currentViews = cookieMatch ? parseInt(cookieMatch[1]) + 1 : 1;
-            trackingState.isNewSession = wasEmpty;
+            if (cookieMatch) {
+                var storedValue = cookieMatch[1];
+                
+                // Si ya se alcanzó el máximo, no incrementar
+                if (storedValue === 'max_reached') {
+                    trackingState.currentViews = 'max_reached';
+                    trackingState.isMaxReached = true;
+                    trackingState.isNewSession = false;
+                } else {
+                    var currentCount = parseInt(storedValue, 10);
+                    
+                    // Validar y aplicar límite
+                    if (currentCount >= CONFIG.maxTrackedViews) {
+                        trackingState.currentViews = 'max_reached';
+                        trackingState.isMaxReached = true;
+                        trackingState.isNewSession = false;
+                    } else {
+                        trackingState.currentViews = currentCount + 1;
+                        trackingState.isMaxReached = false;
+                        trackingState.isNewSession = false;
+                        
+                        // Verificar si con este incremento alcanzamos el máximo
+                        if (trackingState.currentViews >= CONFIG.maxTrackedViews) {
+                            trackingState.currentViews = 'max_reached';
+                            trackingState.isMaxReached = true;
+                        }
+                    }
+                }
+            } else {
+                // Primera visita
+                trackingState.currentViews = 1;
+                trackingState.isNewSession = true;
+                trackingState.isMaxReached = false;
+            }
             
-            // Cookie cross-domain
-            var cookieString = CONFIG.storageKey + '=' + trackingState.currentViews + 
+            // Guardar valor (max_reached o número)
+            var valueToStore = trackingState.isMaxReached ? 'max_reached' : trackingState.currentViews;
+            var cookieString = CONFIG.storageKey + '=' + valueToStore + 
                              '; path=/' + 
                              '; max-age=' + CONFIG.cookieExpiry +
                              '; domain=' + cookieDomain;
@@ -128,22 +164,51 @@
                     var stored = sessionStorage.getItem(CONFIG.storageKey);
                     var wasEmpty = !stored;
                     
-                    // Obtener valor actual
-                    trackingState.currentViews = stored ? parseInt(stored, 10) : 0;
-                    
-                    // Validar que sea un número válido
-                    if (isNaN(trackingState.currentViews) || trackingState.currentViews < 0) {
-                        trackingState.currentViews = 0;
+                    if (stored) {
+                        // Si ya se alcanzó el máximo, no incrementar
+                        if (stored === 'max_reached') {
+                            trackingState.currentViews = 'max_reached';
+                            trackingState.isMaxReached = true;
+                            trackingState.isNewSession = false;
+                        } else {
+                            var currentCount = parseInt(stored, 10);
+                            
+                            // Validar que sea un número válido
+                            if (isNaN(currentCount) || currentCount < 0) {
+                                currentCount = 0;
+                                trackingState.isNewSession = true;
+                            }
+                            
+                            // Aplicar límite
+                            if (currentCount >= CONFIG.maxTrackedViews) {
+                                trackingState.currentViews = 'max_reached';
+                                trackingState.isMaxReached = true;
+                                trackingState.isNewSession = false;
+                            } else {
+                                trackingState.currentViews = currentCount + 1;
+                                trackingState.isMaxReached = false;
+                                trackingState.isNewSession = false;
+                                
+                                // Verificar si con este incremento alcanzamos el máximo
+                                if (trackingState.currentViews >= CONFIG.maxTrackedViews) {
+                                    trackingState.currentViews = 'max_reached';
+                                    trackingState.isMaxReached = true;
+                                }
+                            }
+                        }
+                    } else {
+                        // Primera visita
+                        trackingState.currentViews = 1;
                         trackingState.isNewSession = true;
+                        trackingState.isMaxReached = false;
                     }
                     
-                    // Incrementar y guardar
-                    trackingState.currentViews += 1;
-                    sessionStorage.setItem(CONFIG.storageKey, trackingState.currentViews.toString());
+                    // Guardar valor
+                    var valueToStore = trackingState.isMaxReached ? 'max_reached' : trackingState.currentViews;
+                    sessionStorage.setItem(CONFIG.storageKey, valueToStore.toString());
                     
                     // Actualizar estado
                     trackingState.storageMethod = 'sessionStorage';
-                    trackingState.isNewSession = wasEmpty;
                     trackingState.trackingWorking = true;
                     success = true;
                 }
@@ -158,6 +223,7 @@
             trackingState.storageMethod = 'blocked';
             trackingState.isNewSession = true;
             trackingState.trackingWorking = false;
+            trackingState.isMaxReached = false;
         }
     }
     
@@ -176,15 +242,22 @@
             'storage_method': trackingState.storageMethod,
             'is_new_session': trackingState.isNewSession,
             'tracking_working': trackingState.trackingWorking,
+            'is_max_reached': trackingState.isMaxReached,  // NUEVA VARIABLE
+            'max_limit': CONFIG.maxTrackedViews,           // NUEVA VARIABLE
             'domain_tracking': getCookieDomain()
         };
         
-        // 🚨 CASOS ESPECIALES: Valores específicos para errores
+        // 🚨 CASOS ESPECIALES: Valores específicos para diferentes estados
         if (trackingState.currentViews === 'blocked') {
-            eventData.page_views = 'blocked';           // Valor especial para triggers
+            eventData.page_views = 'blocked';
             eventData.page_number = 'blocked';
             eventData.privacy_level = 'high';
             eventData.user_type = 'privacy_focused';
+        } else if (trackingState.currentViews === 'max_reached') {
+            eventData.page_views = 'max_reached';
+            eventData.page_number = 'max_reached';
+            eventData.user_type = 'super_active';
+            eventData.engagement_level = 'maximum';
         }
         
         // Añadir errores si existen
@@ -195,19 +268,37 @@
         // Enviar evento único
         window.dataLayer.push(eventData);
         
-        // 🏆 EVENTOS DE HITOS (opcional - solo para números válidos)
-        if (CONFIG.sendMilestones && 
-            typeof trackingState.currentViews === 'number' &&
-            CONFIG.milestones.indexOf && 
-            CONFIG.milestones.indexOf(trackingState.currentViews) !== -1) {
+        // 🏆 EVENTOS DE HITOS (opcional - solo para números válidos y max_reached)
+        if (CONFIG.sendMilestones) {
+            var shouldSendMilestone = false;
+            var milestoneValue = 0;
             
-            window.dataLayer.push({
-                'event': 'engagement_milestone',
-                'milestone_type': 'page_views',
-                'milestone_value': trackingState.currentViews,
-                'milestone_page': trackingState.currentViews,
-                'storage_method': trackingState.storageMethod
-            });
+            // Verificar si es un número y está en los hitos
+            if (typeof trackingState.currentViews === 'number' &&
+                CONFIG.milestones.indexOf && 
+                CONFIG.milestones.indexOf(trackingState.currentViews) !== -1) {
+                shouldSendMilestone = true;
+                milestoneValue = trackingState.currentViews;
+            }
+            
+            // O si se alcanzó el máximo (hito especial)
+            if (trackingState.currentViews === 'max_reached' && 
+                CONFIG.milestones.indexOf && 
+                CONFIG.milestones.indexOf(CONFIG.maxTrackedViews) !== -1) {
+                shouldSendMilestone = true;
+                milestoneValue = CONFIG.maxTrackedViews;
+            }
+            
+            if (shouldSendMilestone) {
+                window.dataLayer.push({
+                    'event': 'engagement_milestone',
+                    'milestone_type': 'page_views',
+                    'milestone_value': milestoneValue,
+                    'milestone_page': milestoneValue,
+                    'storage_method': trackingState.storageMethod,
+                    'is_max_milestone': milestoneValue === CONFIG.maxTrackedViews
+                });
+            }
         }
     }
     
@@ -225,6 +316,7 @@
             'storage_method': 'error',
             'is_new_session': true,
             'tracking_working': false,
+            'is_max_reached': false,
             'error_type': 'pageview_counter_failed',
             'error_message': globalError.message || 'Unknown error'
         });
